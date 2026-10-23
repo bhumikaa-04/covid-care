@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Covid Care Ward – Daily Rounds</title>
+<style>
+:root{--bg:#eef3f3;--ink:#16292b;--mut:#5b7173;--card:#fff;--line:#d3dfdf;--pri:#0f6b6b;--fev:#c2362f;--ok:#237a4b;--warn:#b7791f}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pri);color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:650}header button{background:#ffffff26;color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer}
+main{max-width:1000px;margin:0 auto;padding:20px}h2{font-size:17px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+.login{max-width:420px;margin:60px auto;text-align:center}.login button{display:block;width:100%;margin:10px 0;padding:14px;font-size:16px}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--pri);background:var(--pri);color:#fff;padding:7px 14px}
+button.sec{background:#fff;color:var(--pri)}button.bad{background:var(--fev);border-color:var(--fev)}button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #f2b705;outline-offset:2px}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}.row:last-child{border:0}
+.row .n{flex:1;min-width:140px}.row small{color:var(--mut);display:block}
+.chip{padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;background:#e4ecec;color:var(--mut)}
+.chip.ok{background:#dff1e6;color:var(--ok)}.chip.fev{background:#fbe2e0;color:var(--fev)}.chip.warn{background:#fbefd5;color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}.stat b{font-size:26px;display:block}
+.alert{padding:10px 14px;border-radius:6px;margin-bottom:12px;background:#fbe2e0;color:var(--fev);font-weight:600}.alert.w{background:#fbefd5;color:var(--warn)}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}.tabs button{background:#fff;color:var(--ink);border-color:var(--line)}.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+dialog{border:0;border-radius:10px;padding:20px;width:min(380px,92vw)}dialog::backdrop{background:#0008}
+input,textarea{font:inherit;width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;margin:6px 0}
+.err{color:var(--fev);min-height:20px;font-size:14px}#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;max-width:92vw}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:720px){.two{grid-template-columns:1fr}}
+.note{border-left:3px solid var(--pri);padding:2px 10px;margin:6px 0;background:#f6fafa}
+</style></head><body>
+<header><h1>Covid Care Ward · Daily Rounds</h1><div id="who"></div></header>
+<main id="app"></main><div id="toast" role="status"></div>
+<dialog id="dlg"></dialog>
+<script>
+const CAP=74,FEVER=38,TODAY=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+const names="Aarav,Diya,Rohan,Meera,Kabir,Ananya,Vihaan,Isha,Arjun,Saanvi,Ishaan,Kavya,Reyansh,Nisha,Aditya,Pooja,Dev,Riya,Karan,Tara,Neel,Sana,Yash,Mira,Om,Zoya,Rahul,Anika,Vikram,Priya".split(","),last="Shah,Patel,Nair,Iyer,Khan,Mehta,Das,Rao,Joshi,Kulkarni,Singh,Desai".split(",");
+let s={role:null,tab:'list',sel:null,cured:34,dead:5,discharged:[],pts:[]},rnd=(i)=>((i*9301+49297)%233280)/233280;
+for(let i=0;i<72;i++){let streak=i<7?3:(i%4),h=[];for(let d=0;d<4;d++){const ok=d>=4-streak;h.push(+(ok?36.6+rnd(i+d)*1.0:38.2+rnd(i+d)*1.3).toFixed(1))}
+ const m=i%3!=0&&i>=7&&i%5!=0;s.pts.push({id:i+1,name:names[i%30]+" "+last[(i*7)%12],room:i+1,hist:h,today:m?+(36.7+rnd(i)*2).toFixed(1):null,by:m?"Nurse Sunita":null,at:m?"8:"+(10+i%40)+" AM":null,visited:m&&i%2==0,approved:false,notes:[],st:'active'})}
+const act=()=>s.pts.filter(p=>p.st=='active'),occ=()=>act().length;
+const streak=p=>{let a=[...p.hist];if(p.today!=null)a.push(p.today);let n=0;for(let i=a.length-1;i>=0&&a[i]<FEVER;i--)n++;return n};
+const elig=p=>streak(p)>=3,mort=()=>s.dead+s.cured?s.dead/(s.dead+s.cured)*100:0;
+const $=q=>document.querySelector(q),toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2800)};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function stat(){const m=mort(),n=s.dead+s.cured;return `<div class="stats"><div class="stat"><b>${occ()}/${CAP}</b>Rooms occupied</div><div class="stat"><b>${s.cured}</b>Cured</div><div class="stat"><b>${s.dead}</b>Deceased</div><div class="stat"><b style="color:${m>15&&n>=20?'var(--fev)':'inherit'}">${m.toFixed(1)}%</b>Mortality (limit 15%)</div></div>`+(m>15&&n>=20?`<div class="alert">Mortality is above the 15% limit. Review care protocols.</div>`:'')+(occ()>=CAP?`<div class="alert">Facility full. No beds available.</div>`:occ()>=CAP*.9?`<div class="alert w">Capacity above 90%. Plan discharges.</div>`:'')}
+function render(){const a=$('#app');$('#who').innerHTML=s.role?`<span style="margin-right:10px">${TODAY} · ${s.role}</span><button data-a="out">Switch role</button>`:'';
+ if(!s.role){a.innerHTML=`<div class="card login"><h2>Who is using the ward system?</h2><p style="color:var(--mut)">Pick a role to see that person's daily list.</p><button data-a="role" data-v="Nurse">Nurse</button><button data-a="role" data-v="Doctor">Doctor</button><button data-a="role" data-v="Admin">Admin</button></div>`;return}
+ a.innerHTML=s.role=='Nurse'?nurse():s.role=='Doctor'?doctor():admin()}
+function nurse(){const L=act(),done=L.filter(p=>p.today!=null).length;
+ return stat0()+`<div class="card"><h2>Temperatures to record · ${done} of ${L.length} done</h2>`+L.map(p=>`<div class="row"><div class="n"><b>${esc(p.name)}</b><small>Room ${p.room}${p.today!=null?` · ${p.today}°C at ${p.at} by ${p.by}`:''}</small></div>${p.today==null?`<span class="chip">Pending</span><button data-a="temp" data-v="${p.id}">Record temp</button>`:`<span class="chip ${p.today>=FEVER?'fev':'ok'}">${p.today>=FEVER?'Fever':'Measured'}</span>`}</div>`).join('')+`</div>`}
+function stat0(){return `<div class="stats"><div class="stat"><b>${act().filter(p=>p.today==null).length}</b>Still to measure</div><div class="stat"><b>${act().filter(p=>p.today>=FEVER).length}</b>Fever today</div></div>`}
+function doctor(){const L=act(),p=s.sel&&L.find(x=>x.id==s.sel);
+ const stt=q=>q.today==null?['Awaiting temp',''] :q.visited?['Visited','ok']:['Ready to visit','warn'];
+ return `<div class="two"><div class="card"><h2>Visit list</h2>`+L.map(q=>{const t=stt(q);return `<div class="row"><div class="n"><b>${esc(q.name)}</b><small>Room ${q.room} · ${streak(q)}/3 fever-free days</small></div><span class="chip ${t[1]}">${t[0]}</span><button class="sec" data-a="sel" data-v="${q.id}">Open</button></div>`}).join('')+`</div><div>${p?detail(p):'<div class="card">Select a patient to see their chart and notes.</div>'}</div></div>`}
+function chart(p){const a=[...p.hist,...(p.today!=null?[p.today]:[])],W=320,H=140,x=i=>20+i*(W-40)/Math.max(a.length-1,1),y=v=>H-20-(v-36)/5*(H-40);
+ return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Temperature history"><line x1="20" x2="${W-10}" y1="${y(FEVER)}" y2="${y(FEVER)}" stroke="#c2362f" stroke-dasharray="4"/><text x="22" y="${y(FEVER)-4}" font-size="10" fill="#c2362f">Fever ${FEVER}°C</text><polyline fill="none" stroke="#0f6b6b" stroke-width="2" points="${a.map((v,i)=>x(i)+','+y(v)).join(' ')}"/>${a.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${v>=FEVER?'#c2362f':'#0f6b6b'}"/><text x="${x(i)}" y="${H-4}" font-size="10" text-anchor="middle">${v}</text>`).join('')}</svg>`}
+function detail(p){return `<div class="card"><h2>${esc(p.name)} · Room ${p.room}</h2><span class="chip ${elig(p)?'ok':''}">${streak(p)}/3 fever-free days${elig(p)?' · eligible for discharge':''}</span>${chart(p)}
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button data-a="visit" data-v="${p.id}" ${p.visited?'disabled':''}>${p.visited?'Visit done':'Mark visited'}</button><button class="sec" data-a="note" data-v="${p.id}">Add note</button><button data-a="approve" data-v="${p.id}" ${!elig(p)||p.approved?'disabled':''}>${p.approved?'Discharge approved':'Approve discharge'}</button><button class="bad" data-a="death" data-v="${p.id}">Record death</button></div>
+ ${p.notes.map(n=>`<div class="note">${esc(n)}</div>`).join('')||'<small>No notes yet.</small>'}</div>`}
+function admin(){const T=s.tab,Q=act().filter(p=>p.approved);
+ return `<div class="tabs"><button class="${T=='list'?'on':''}" data-a="tab" data-v="list">Dashboard</button><button class="${T=='admit'?'on':''}" data-a="tab" data-v="admit">Admit patient</button><button class="${T=='dis'?'on':''}" data-a="tab" data-v="dis">Discharge queue (${Q.length})</button></div>`+stat()+
+ (T=='admit'?`<div class="card"><h2>Admit a patient</h2><label>Patient name<input id="nm" placeholder="Full name"></label><div class="err" id="er"></div><button data-a="admit" ${occ()>=CAP?'disabled':''}>Admit and assign room</button></div>`:
+ T=='dis'?`<div class="card"><h2>Ready for discharge</h2>`+(Q.map(p=>`<div class="row"><div class="n"><b>${esc(p.name)}</b><small>Room ${p.room} · doctor approved</small></div><button data-a="dis" data-v="${p.id}">Discharge and free room</button></div>`).join('')||'<p>No doctor-approved discharges yet.</p>')+`</div>`:
+ `<div class="card"><h2>Eligible but not approved by a doctor</h2>`+(act().filter(p=>elig(p)&&!p.approved).map(p=>`<div class="row"><div class="n"><b>${esc(p.name)}</b><small>Room ${p.room}</small></div><span class="chip warn">Waiting for doctor</span></div>`).join('')||'<p>None.</p>')+`</div>`)}
+function ask(html,ok){const d=$('#dlg');d.innerHTML=html+`<div class="err" id="de"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="sec" data-a="x">Cancel</button><button data-a="ok">Confirm</button></div>`;d._ok=ok;d.showModal()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,v=+b.dataset.v||b.dataset.v,P=id=>s.pts.find(p=>p.id==id),d=$('#dlg');
+ if(a=='role'){s.role=v;s.sel=null;s.tab='list'}else if(a=='out')s.role=null;else if(a=='tab')s.tab=v;else if(a=='sel')s.sel=v;
+ else if(a=='x')return d.close();else if(a=='ok'){const r=d._ok();if(r)$('#de').textContent=r;else d.close()}
+ else if(a=='temp'){const p=P(v);if(p.today!=null)return toast('Already recorded at '+p.at+' by '+p.by);ask(`<h2>Record temperature</h2><p>${esc(p.name)}, room ${p.room}</p><input id="tv" type="number" step="0.1" placeholder="e.g. 37.4 °C" autofocus>`,()=>{const t=parseFloat($('#tv').value);if(isNaN(t)||t<34||t>43)return 'Enter a value between 34 and 43 °C.';if(p.today!=null)return 'Already recorded today.';p.today=t;p.by='Nurse Sunita';p.at=new Date().toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});toast(t>=FEVER?'Saved. Fever flagged.':'Temperature saved.');render()});return}
+ else if(a=='visit'){const p=P(v);if(p.today==null)return toast('Temperature not yet recorded. Ask the nurse first.');p.visited=true}
+ else if(a=='note'){const p=P(v);ask(`<h2>Add note</h2><textarea id="nt" rows="3" placeholder="Treatment or observation"></textarea>`,()=>{const t=$('#nt').value.trim();if(!t)return 'Write a note first.';p.notes.push(t);render()});return}
+ else if(a=='approve'){const p=P(v);if(!elig(p))return;p.approved=true;toast('Discharge approved. Admin can now free the room.')}
+ else if(a=='death'){const p=P(v);ask(`<h2>Record death?</h2><p>${esc(p.name)} will be removed from active rooms. This cannot be undone by a doctor.</p>`,()=>{p.st='deceased';s.dead++;s.sel=null;toast('Death recorded. Room '+p.room+' is free.');render()});return}
+ else if(a=='admit'){if(occ()>=CAP)return toast('Facility full');const n=$('#nm').value.trim();if(!n)return $('#er').textContent='Enter the patient name.';const used=new Set(act().map(p=>p.room));let r=1;while(used.has(r))r++;s.pts.push({id:s.pts.length+1,name:n,room:r,hist:[],today:null,by:null,at:null,visited:false,approved:false,notes:[],st:'active'});toast(n+' admitted to room '+r)}
+ else if(a=='dis'){const p=P(v);p.st='cured';s.cured++;toast('Discharged. Room '+p.room+' is free.')}
+ render()});
+render();
+</script></body></html>
